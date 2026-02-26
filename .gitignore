@@ -9,9 +9,7 @@ __pycache__/
 
 # Data and models (large files)
 tilda_structured/
-tilda_structured_split/
 models/
-models_highacc/
 
 # IDE files
 .vscode/

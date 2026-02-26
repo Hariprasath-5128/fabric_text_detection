@@ -1,0 +1,20 @@
+[
+  {
+    "class_name": "class_1_fine_texture",
+    "backbone": "convnext_tiny",
+    "model_path": "C:\\Projects\\CV\\models_highacc\\class_1_fine_texture_highacc_convnext_tiny.pth",
+    "meta_path": "C:\\Projects\\CV\\models_highacc\\class_1_fine_texture_highacc_convnext_tiny_meta.json",
+    "best_epoch": 12,
+    "threshold": 0.195,
+    "test_accuracy": 0.84375,
+    "test_precision": 0.9831932773109243,
+    "test_recall": 0.8357142857142857,
+    "test_f1": 0.9034749034749034,
+    "test_balanced_accuracy": 0.8678571428571429,
+    "tp": 117,
+    "tn": 18,
+    "fp": 2,
+    "fn": 23,
+    "test_total": 160
+  }
+]

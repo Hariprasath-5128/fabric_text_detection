@@ -1,0 +1,10 @@
+{
+  "class_name": "class_1_fine_texture",
+  "model_path": "C:\\Projects\\CV\\models_highacc\\class_1_fine_texture_highacc_convnext_tiny.pth",
+  "best_epoch": 12,
+  "decision_threshold": 0.2,
+  "image_size": 288,
+  "backbone": "convnext_tiny",
+  "dropout_feat": 0.45,
+  "dropout_mid": 0.2
+}
