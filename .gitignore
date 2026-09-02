@@ -14,3 +14,7 @@ models/
 # IDE files
 .vscode/
 .idea/
+
+log.txt
+saved_images/
+textile_models/

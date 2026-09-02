@@ -1,3 +1,21 @@
+"""
+train_all_classes.py
+====================
+Trains all 4 per-class binary defect detection models and saves them to
+the `textile_models/` directory.  Uses the EXACT same algorithm as
+`train_high_accuracy_per_class.py`:
+
+  • Per-class backbone mapping (ConvNeXt-Tiny, Swin-T, EfficientNetV2-S, ConvNeXt-Small)
+  • FocalBCE loss with class-weight balancing
+  • Phase 1: warmup (frozen backbone) → Phase 2: full fine-tune (cosine) → Phase 3: SWA
+  • 8-view TTA for evaluation
+  • Automatic threshold tuning (balanced-accuracy + F1)
+
+Usage:
+    python train_all_classes.py
+    python train_all_classes.py --classes class_1_fine_texture class_3_periodic_texture
+"""
+
 import argparse
 import json
 import random
@@ -15,22 +33,17 @@ from torchvision import models, transforms
 
 
 SEED = 42
-DEFAULT_SPLIT_ROOT = Path(r"C:\Projects\CV\tilda_structured_split")
-DEFAULT_OUT_DIR = Path(r"C:\Projects\CV\models_highacc")
+DEFAULT_SPLIT_ROOT = Path("tilda_structured_split")
+DEFAULT_OUT_DIR = Path("textile_models")
 
 
 # ============================================================================
 # PER-CLASS BACKBONE MAPPING
-# Each class gets the pretrained backbone that best matches its texture type.
 # ============================================================================
 CLASS_BACKBONE_MAP = {
-    # Class 1 — Fine texture: needs strong local texture discrimination.
-    # ConvNeXt-Tiny excels here: 7×7 depthwise conv kernels capture fine-grained
-    # patterns better than 3×3 kernels, and its modern design (LayerNorm,
-    # inverted bottleneck) gives state-of-the-art texture classification.
     "class_1_fine_texture": {
         "backbone": "convnext_tiny",
-        "image_size": 288,  # slightly above native 224 for more detail
+        "image_size": 288,
         "lr_head": 8e-4,
         "lr_backbone": 8e-5,
         "epochs": 60,
@@ -39,8 +52,6 @@ CLASS_BACKBONE_MAP = {
         "dropout_feat": 0.45,
         "dropout_mid": 0.20,
     },
-    # Class 2 — Stochastic texture: random patterns, needs global context.
-    # Swin-T captures both local and global via shifted windows.
     "class_2_stochastic_texture": {
         "backbone": "swin_t",
         "image_size": 256,
@@ -52,8 +63,6 @@ CLASS_BACKBONE_MAP = {
         "dropout_feat": 0.40,
         "dropout_mid": 0.20,
     },
-    # Class 3 — Periodic texture: repeating patterns, needs frequency sensitivity.
-    # EfficientNetV2-S is great for structured/periodic patterns.
     "class_3_periodic_texture": {
         "backbone": "efficientnet_v2_s",
         "image_size": 300,
@@ -65,8 +74,6 @@ CLASS_BACKBONE_MAP = {
         "dropout_feat": 0.40,
         "dropout_mid": 0.20,
     },
-    # Class 4 — Printed non-periodic: diverse patterns, needs strong generalization.
-    # ConvNeXt-Small has more capacity for complex, non-repeating patterns.
     "class_4_printed_nonperiodic": {
         "backbone": "convnext_small",
         "image_size": 288,
@@ -216,11 +223,9 @@ def discover_classes(split_root: Path) -> List[str]:
 
 
 # ============================================================================
-# MODEL BUILDING — per-class backbone
+# MODEL BUILDING
 # ============================================================================
 def build_model(backbone_name: str, dropout_feat: float = 0.40, dropout_mid: float = 0.20) -> nn.Module:
-    """Build a model with the specified pretrained backbone + binary classifier head."""
-
     if backbone_name == "convnext_tiny":
         weights = models.ConvNeXt_Tiny_Weights.DEFAULT
         model = models.convnext_tiny(weights=weights)
@@ -263,19 +268,6 @@ def build_model(backbone_name: str, dropout_feat: float = 0.40, dropout_mid: flo
     elif backbone_name == "efficientnet_v2_s":
         weights = models.EfficientNet_V2_S_Weights.DEFAULT
         model = models.efficientnet_v2_s(weights=weights)
-        in_features = model.classifier[1].in_features
-        model.classifier = nn.Sequential(
-            nn.Dropout(p=dropout_feat, inplace=True),
-            nn.Linear(in_features, 128),
-            nn.SiLU(inplace=True),
-            nn.Dropout(p=dropout_mid),
-            nn.Linear(128, 1),
-        )
-        backbone_modules = [model.features]
-
-    elif backbone_name == "efficientnet_b3":
-        weights = models.EfficientNet_B3_Weights.DEFAULT
-        model = models.efficientnet_b3(weights=weights)
         in_features = model.classifier[1].in_features
         model.classifier = nn.Sequential(
             nn.Dropout(p=dropout_feat, inplace=True),
@@ -601,7 +593,7 @@ def run_one_class(
 # CLI
 # ============================================================================
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Per-class optimal backbone training for textile defect detection.")
+    p = argparse.ArgumentParser(description="Train all 4 per-class defect models → textile_models/")
     p.add_argument("--split-root", type=str, default=str(DEFAULT_SPLIT_ROOT))
     p.add_argument("--out-dir", type=str, default=str(DEFAULT_OUT_DIR))
     p.add_argument("--batch-size", type=int, default=8)
@@ -629,7 +621,11 @@ def main() -> None:
     if not classes:
         raise RuntimeError(f"No matching class_* directories found in {split_root}")
 
-    print(f"DEVICE={device}")
+    print(f"{'='*60}")
+    print(f"  TEXTILE DEFECT MODEL TRAINING")
+    print(f"  Output: {out_dir}")
+    print(f"  Device: {device}")
+    print(f"{'='*60}")
     print(f"CLASSES={classes}")
 
     for c in classes:
